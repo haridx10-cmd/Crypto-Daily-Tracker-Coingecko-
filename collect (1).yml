@@ -1,0 +1,33 @@
+# Runs the collector every 15 minutes via GitHub Actions instead of Vercel's
+# own cron, because Vercel Hobby only allows daily-or-slower native crons.
+# /api/report stays on Vercel's built-in cron (see vercel.json) since that one
+# really is once a day and Hobby allows it.
+#
+# Requires two repo secrets (Settings → Secrets and variables → Actions):
+#   VERCEL_APP_URL   e.g. https://survivor-board.vercel.app  (no trailing slash)
+#   CRON_SECRET      the exact same value you set as the Vercel env var
+
+name: collect
+
+on:
+  schedule:
+    # GitHub's scheduler can lag several minutes under load — fine here,
+    # the pipeline doesn't need second-precision, just steady coverage.
+    - cron: '*/15 * * * *'
+  workflow_dispatch: {} # lets you trigger a run by hand from the Actions tab
+
+jobs:
+  hit-collect-endpoint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call /api/collect
+        run: |
+          code=$(curl -s -o /tmp/body.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.VERCEL_APP_URL }}/api/collect")
+          echo "HTTP $code"
+          cat /tmp/body.json
+          if [ "$code" != "200" ]; then
+            echo "::error::collect endpoint returned $code"
+            exit 1
+          fi
