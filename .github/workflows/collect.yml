@@ -1,7 +1,9 @@
 name: collect
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    # offset from :00/:15/:30/:45 — GitHub deprioritizes crons on those exact
+    # marks under high platform load, which is why the first hour saw zero runs
+    - cron: '7,22,37,52 * * * *'
   workflow_dispatch: {}
 jobs:
   hit-collect-endpoint:
